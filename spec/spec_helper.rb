@@ -1,0 +1,7 @@
+require_relative '../lib/heating'
+require_relative '../lib/heating/heating_circuit'
+require_relative '../lib/heating/devices'
+require_relative '../lib/heating/heating_circuit/radiator'
+require_relative '../lib/heating/heating_circuit/living_room'
+require_relative '../lib/heating/heating_circuit/floor'
+require_relative '../lib/heating/heating_circuit/warm_water'
