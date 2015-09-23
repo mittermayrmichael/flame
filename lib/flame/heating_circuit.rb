@@ -1,19 +1,34 @@
-require "lib/flame/devices"
+require './flame/devices'
+require './flame/configuration_interface'
+require './flame/logging'
+require 'active_record'
+require 'json'
 
-class HeatingCircuit
-  attr_reader :target, :actual, :condition, :heating_curve_temperature, :lead_temperature, :temperatures
+ActiveRecord::Base.establish_connection(
+      adapter:    'postgresql',
+      host:       'localhost',
+      database:   'flame',
+      username:   'postgres',
+      password:   'Welcome2',
+      port:       5432)
 
-  AVAILABLE_DEVICES = [:mixer, :pump, :district_heating]
+class HeatingCircuit < ActiveRecord::Base
+  # EXTENSIONS
+  include Logging
+  extend ConfigurationInterface
+
+  # ATTRIBUTES
+  attr_reader :target, :actual, :heating_curve_temperature, :lead_temperature, :central_boiler_temperature, :storage_boiler_temperature, :mode
+  AVAILABLE_DEVICES = %i(mixer pump district_heating)
   
-  def initialize(args)
-    @target = args[:target]
-    @actual = args[:actual]    
-    @condition = default_conditions(actual, target)
-    @mixer = Mixer.new(args)
-    @pump = Pump.new
-    @district_heating = DistrictHeating.new
+  def initialize(params={})
+    super(params)
+    simulate_temperatures
+    build_credentials
+    build_heating_tools
+    build_temperature_program
   end
-  
+
   def business_logic
   end
 
@@ -30,36 +45,64 @@ class HeatingCircuit
   end
 
   def enable(*args)
-    set_status(*args, :enable)
+    set_status(args, :enable)
   end
 
   def disable(*args)
-    set_status(*args, :disable)
-  end
-
-  def set_status(*args, value)
-    AVAILABLE_DEVICES.each { |device| set_status_code(device, value) if args.include?(device) }
-  end
-
-  def set_status_code(device, value)
-    @pump.send(value) if device == :pump
-    @mixer.send(value) if device == :mixer
-    @district_heating.send(value) if device == :district_heating
+    set_status(args, :disable)
   end
 
   def shutdown
     disable(:pump, :mixer, :district_heating)
   end
 
-  def possible_oscillation?
-    false
+  def log
+    Log.process(values)
+  end
+
+  def update
+    ConfigurationInterface.update(self).each_pair do |name, value|
+      @mode = value if name == :mode
+      @target = {flow_temperature: value, outdoor_temperature: 20} if name == :flow_temperature
+    end
   end
 
   private
 
+    def possible_oscillation?
+      false#Log.mixer_series.last_records(5)
+    end
+
+    def set_status(args, value)
+      AVAILABLE_DEVICES.each { |device| set_status_code(device, value) if args.include?(device) }
+    end
+
+    def simulate_temperatures
+      @actual = {outdoor_temperature: 19, flow_temperature: 19, boiler_pump: false}
+    end
+
+    def build_credentials
+      self.name = self.class.name
+      self.id = HeatingCircuit.find_by_name(name).id
+      self.sensor = HeatingCircuit.find(id).sensor
+    end
+
+    def build_heating_tools
+      @mixer = Mixer.new
+      @pump = Pump.new
+      @district_heating = DistrictHeating.new
+    end
+
+    def build_temperature_program
+      update.each_pair do |name, value|
+        @mode = value if name == :mode
+        @target = {flow_temperature: value, outdoor_temperature: 20} if name == :flow_temperature
+      end
+    end
+
     def turn_off?
-      puts "Turn off condition: #{condition}"
-      condition
+      puts "Turn off condition: #{default_conditions(@actual, @target)}"
+      default_conditions(@actual, @target)
     end
 
     def heating_curve
@@ -78,5 +121,44 @@ class HeatingCircuit
     def heating_curve_temperature
       @heating_curve_temperature = Random.rand(100)
     end
+    
+    def period
+      (last_timestamp-first_timestamp)/60
+    end
+  
+    def last_timestamp
+      self.maximum(:measured)
+    end
 
+    def first_timestamp
+      self.minimum(:measured)
+    end
+
+    def mixer_series
+      self.where(heating_circuit_id: id, mixer: true)
+    end
+
+    def last_records(n)
+      self.last(n).reverse
+    end
+
+    def values
+      basics = Hash[measured: Time.now, heating_circuit_id: self.id, mode: mode.to_s]
+      temperatures = Hash[temperature_measures.map {|measure| [measure.to_sym, self.instance_variable_get("@#{measure}")]}]
+      actuals = Hash[outdoor_temperature: actual[:outdoor_temperature], flow_temperature: actual[:flow_temperature]]
+      heating_tools = Hash[mixer: @mixer.status, pump: @pump.status, district_heating: @district_heating.status]
+
+      return basics.merge(temperatures).merge(actuals).merge(heating_tools)
+    end
+
+    def temperature_measures
+      %w(lead_temperature heating_curve_temperature central_boiler_temperature storage_boiler_temperature)
+    end
+
+    def set_status_code(device, value)
+      @pump.send(value) if device == :pump
+      @mixer.send(value) if device == :mixer
+      @district_heating.send(value) if device == :district_heating
+    end
 end
+

@@ -20,19 +20,10 @@ end
 class Mixer < Device
   attr_reader :turn_on_temperature, :turn_off_temperature
   
-  def initialize(args)
+  def initialize
     super()
-    @turn_on_temperature = args[:turn_on_temperature] || -2
-    @turn_off_temperature = args[:turn_off_temperature] || 2
-  end
-
-  def enable(target_runtime = 5)
-    @status = true
-    puts "Enable: #{self.class}"
-  end
-
-  def oscillate?
-    
+    @turn_on_temperature = -2#args[:turn_on_temperature] || -2
+    @turn_off_temperature = 2#args[:turn_off_temperature] || 2
   end
 
 end

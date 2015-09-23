@@ -1,16 +1,11 @@
-require "flame/version"
-require "flame/heating_circuit"
-require "flame/heating_circuit/radiator"
+require "./flame/version"
+require "./flame/heating_circuit"
+require "./flame/heating_circuit/radiator"
 
 module Flame
   attr_reader :status
-
   @status = false
-  args = {target: {outdoor_temperature: 20, flow_temperature: 20},
-       actual: {outdoor_temperature: 19, flow_temperature: 19, boiler_pump: false},
-       pump: false}
-
-  @radiator = Radiator.new(args)
+  @radiator = Radiator.new
 
   def boot
     if @status
@@ -25,8 +20,13 @@ module Flame
   def worker
     while(@status)
       @radiator.business_logic
+      update
       sleep(3)
     end
+  end
+
+  def update
+    @radiator.update
   end
 
   def shutdown
@@ -38,9 +38,5 @@ module Flame
   def running?
     @status
   end
-
-end
-
-
 
 end

@@ -1,0 +1,42 @@
+{
+    "ausgang_heizkreispumpe": "pumpe_heizkoerper", 
+    "ausgang_mischer_auf": "mischer_auf_heizkoerper", 
+    "ausgang_mischer_zu": "mischer_zu_heizkoerper", 
+    "ausgang_pumpe_boiler_ladung": "pumpe_boiler_ladung", 
+    "betriebsart": "ZEIT", 
+    "einfluss_raumkurve": 0, 
+    "eingang_aussen_temperatur": "aussentemperatur", 
+    "eingang_externer_schalter": "", 
+    "eingang_freigabe_heizkreis": "pumpe_boiler_ladung", 
+    "eingang_raum_temperatur": "", 
+    "eingang_vorlauf_temperatur": "vorlauf_heizkoerper", 
+    "frostschutz": "", 
+    "heizkreispumpe": 1, 
+    "heizkurve": "heizkoerper", 
+    "temperatur_abgesenkt": 18.0, 
+    "temperatur_normal": 20.0, 
+    "temperatur_standby": 15.0, 
+    "vorhaltezeit": 1800, 
+    "zeitprogramm": {
+        "modes": [
+            {
+                "name": "night", 
+                "target": "temperatur_abgesenkt"
+            }, 
+            {
+                "name": "day", 
+                "target": "temperatur_normal"
+            }
+        ], 
+        "plans": [
+            {
+                "mode": "night", 
+                "start": "2200"
+            }, 
+            {
+                "mode": "day", 
+                "start": "600"
+            }
+        ]
+    }
+}
