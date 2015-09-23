@@ -19,8 +19,9 @@ class HeatingCircuit < ActiveRecord::Base
 
   # ATTRIBUTES
   attr_reader :target, :actual, :heating_curve_temperature, :lead_temperature, :central_boiler_temperature, :storage_boiler_temperature, :mode
+  TEMPERATURE_MEASURES = %w(lead_temperature heating_curve_temperature central_boiler_temperature storage_boiler_temperature)
   AVAILABLE_DEVICES = %i(mixer pump district_heating)
-  
+
   def initialize(params={})
     super(params)
     simulate_temperatures
@@ -144,15 +145,11 @@ class HeatingCircuit < ActiveRecord::Base
 
     def values
       basics = Hash[measured: Time.now, heating_circuit_id: self.id, mode: mode.to_s]
-      temperatures = Hash[temperature_measures.map {|measure| [measure.to_sym, self.instance_variable_get("@#{measure}")]}]
+      temperatures = Hash[TEMPERATURE_MEASURES.map {|measure| [measure.to_sym, self.instance_variable_get("@#{measure}")]}]
       actuals = Hash[outdoor_temperature: actual[:outdoor_temperature], flow_temperature: actual[:flow_temperature]]
       heating_tools = Hash[mixer: @mixer.status, pump: @pump.status, district_heating: @district_heating.status]
 
       return basics.merge(temperatures).merge(actuals).merge(heating_tools)
-    end
-
-    def temperature_measures
-      %w(lead_temperature heating_curve_temperature central_boiler_temperature storage_boiler_temperature)
     end
 
     def set_status_code(device, value)
